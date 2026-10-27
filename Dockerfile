@@ -7,7 +7,11 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=7311
 COPY package.json server.js languages.json ./
 RUN mkdir -p cache && chown node:node cache
 
-USER node
+# BeamUp's deploy check probes port 80 (Dokku's default web port)
+# bind it at startup, then drop to the node user once listening
+# minimal CPU cost
+
+USER root
 EXPOSE 7311
 # behind a reverse proxy, also pass REAL_IP_HEADER (e.g. -e REAL_IP_HEADER=x-real-ip),
 # otherwise every user shares the proxy's address and one rate limit

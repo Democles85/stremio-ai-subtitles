@@ -1063,10 +1063,16 @@ server.listen(PORT, HOST, () => log(`AI Subtitles on ${PUBLIC_URL}/configure`));
 // BeamUp's Dokku deploy check probes the container on ports we can't predict
 // (5000 default, 7311 EXPOSE, or BeamUp's own 8000+ assignment). Bind a window.
 const probePorts = new Set([5000, 7311]);
+if (process.getuid && process.getuid() === 0) probePorts.add(80);
 for (const p of Array.from({ length: 260 }, (_, i) => 7999 + i)) probePorts.add(p);
 for (const p of probePorts) {
 	if (p === PORT) continue;
 	const alt = http.createServer(handler);
 	alt.on('error', (e) => log(`warning: cannot bind extra port ${p}: ${e.message}`));
-	alt.listen(p, HOST, () => log(`extra listener on ${p}`));
+	alt.listen(p, HOST, () => {
+		log(`extra listener on ${p}`);
+		if (p === 80 && process.getuid && process.getuid() === 0) {
+			try { process.setuid('node'); log('dropped privileges to node'); } catch (e) { log(`warning: setuid node failed: ${e.message}`); }
+		}
+	});
 }

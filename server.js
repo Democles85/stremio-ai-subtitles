@@ -18,7 +18,7 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || `http://${HOST}:${PORT}`).replace(
 const BASE_PATH = new URL(PUBLIC_URL).pathname.replace(/\/$/, '');
 const SECRET = process.env.CONFIG_SECRET || '';
 const REAL_IP_HEADER = (process.env.REAL_IP_HEADER || '').toLowerCase(); // e.g. cf-connecting-ip, x-real-ip
-const CACHE_DIR = path.join(__dirname, 'cache');
+let CACHE_DIR = path.join(__dirname, 'cache');
 const CACHE_MAX_MB = Number(process.env.CACHE_MAX_MB || 2000);
 const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS || 24); // a translation is deleted this long after its last use
 const JOBS_PER_IP_HOUR = Number(process.env.JOBS_PER_IP_HOUR || 30);
@@ -69,7 +69,12 @@ const PROVIDERS = {
   custom:     { name: 'Custom (OpenAI-compatible)', base: '', model: '' },
 };
 
-fs.mkdirSync(CACHE_DIR, { recursive: true });
+try {
+	fs.mkdirSync(CACHE_DIR, { recursive: true });
+} catch (e) {
+	// read-only or root-owned cache volume → fall back to /tmp
+	try { fs.mkdirSync('/tmp/ai-subtitles-cache', { recursive: true }); CACHE_DIR = '/tmp/ai-subtitles-cache'; } catch (e2) {}
+}
 
 const manifestBase = {
   id: 'dev.luizsilva.ai-subtitles',

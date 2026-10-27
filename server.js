@@ -11,9 +11,13 @@ const crypto = require('crypto');
 const dns = require('dns').promises;
 const net = require('net');
 
-const HOST = process.env.HOST || '0.0.0.0';
+// BeamUp's deploy check may use an IPv6 container address; HOST default
+// 0.0.0.0 is IPv4-only, so the default (no HOST) dual-stack bind is kept when
+// BeamUp is detected (no explicit HOST env on BeamUp).
+const BIND = process.env.HOST || '::';
 const PORT = Number(process.env.PORT || 7311);
-const PUBLIC_URL = (process.env.PUBLIC_URL || `http://${HOST}:${PORT}`).replace(/\/$/, '');
+const PUBLIC_URL = (process.env.PUBLIC_URL || `http://[::1]:${PORT}`).replace(/\/$/, '');
+const HOST = BIND;
 // path prefix when the addon lives in a subdirectory (e.g. https://example.com/ai-subtitles)
 const BASE_PATH = new URL(PUBLIC_URL).pathname.replace(/\/$/, '');
 const SECRET = process.env.CONFIG_SECRET || '';

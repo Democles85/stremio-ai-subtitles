@@ -1021,7 +1021,6 @@ const handler = async (req, res) => {
     if (p === '/' ) return send(res, 302, '', 'text/plain', { Location: `${PUBLIC_URL}/configure` });
     if (p === '/configure') return send(res, 200, configurePage(null, ''), html, page);
     if (p === '/manifest.json') {
-      if (process.env.LINT_SIMPLE) return send(res, 200, { id: 'dev.test', version: '1.0.0', name: 'AI Subtitles', description: 'Temporary lint probe', types: ['movie', 'series'], resources: ['subtitles'], catalogs: [], contactEmail: 'a@example.com', logo: 'https://subtitlesync.stream/web/logo.png', behaviorHints: { configurable: true, configurationRequired: true } });
       return send(res, 200, { ...manifestBase, behaviorHints: { configurable: true, configurationRequired: true } });
     }
 

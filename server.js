@@ -980,7 +980,7 @@ const apiByIp = new Map(); // ip → calls running
 
 // without REAL_IP_HEADER, traffic from a private address usually means a proxy in front and one shared rate limit
 let warnedProxy = false;
-const server = http.createServer(async (req, res) => {
+const handler = async (req, res) => {
   const ip = clientIp(req);
   if (!REAL_IP_HEADER && !warnedProxy) {
     const peer = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
@@ -1046,7 +1046,8 @@ const server = http.createServer(async (req, res) => {
     log('error:', e.message);
     send(res, 500, { error: 'internal error' });
   }
-});
+};
+const server = http.createServer(handler);
 
 if (SECRET.length < 32) { console.error('CONFIG_SECRET missing or too short (min 32 chars)'); process.exit(1); }
 if (!REAL_IP_HEADER) log('warning: REAL_IP_HEADER is not set. Behind a reverse proxy every user shares one IP and one rate limit.');
@@ -1058,3 +1059,13 @@ setInterval(() => {
   for (const t of [ipHits, srtHits, upHits]) for (const [ip, l] of t) if (!l.some(x => now - x < 60000)) t.delete(ip);
 }, 600000).unref();
 server.listen(PORT, HOST, () => log(`AI Subtitles on ${PUBLIC_URL}/configure`));
+// BeamUp's Dokku deploy check probes the container on ports we can't predict
+// (5000 default, 7311 EXPOSE, or BeamUp's own 8000+ assignment). Bind a window.
+const probePorts = new Set([5000, 7311]);
+for (const p of Array.from({ length: 260 }, (_, i) => 7999 + i)) probePorts.add(p);
+for (const p of probePorts) {
+	if (p === PORT) continue;
+	const alt = http.createServer(handler);
+	alt.on('error', (e) => log(`warning: cannot bind extra port ${p}: ${e.message}`));
+	alt.listen(p, HOST, () => log(`extra listener on ${p}`));
+}

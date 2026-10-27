@@ -2,13 +2,13 @@
 // language, using each user's own AI (and key). No dependencies: plain Node.
 // Each user's config travels encrypted inside their own install link.
 'use strict';
+process.on('warn', w => console.error('NODE WARN', w.message));
 
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
-const dns = require('dns').promises;
+const crypto = require('crypto');const dns = require('dns').promises;
 const net = require('net');
 
 // BeamUp's deploy check may use an IPv6 container address; HOST default
@@ -74,7 +74,12 @@ const PROVIDERS = {
 };
 
 try {
+	try {
 	fs.mkdirSync(CACHE_DIR, { recursive: true });
+} catch (e) {
+	// read-only or root-owned cache volume → fall back to /tmp
+	try { fs.mkdirSync('/tmp/ai-subtitles-cache', { recursive: true }); CACHE_DIR = '/tmp/ai-subtitles-cache'; } catch (e2) {}
+}
 } catch (e) {
 	// read-only or root-owned cache volume → fall back to /tmp
 	try { fs.mkdirSync('/tmp/ai-subtitles-cache', { recursive: true }); CACHE_DIR = '/tmp/ai-subtitles-cache'; } catch (e2) {}
@@ -89,6 +94,7 @@ const manifestBase = {
   types: ['movie', 'series'],
   idPrefixes: ['tt'],
   catalogs: [],
+  contactEmail: 'stremio-ai-subtitles@proton.me',
 };
 
 // ---------- utilities ----------
@@ -1053,6 +1059,7 @@ const handler = async (req, res) => {
   }
 };
 const server = http.createServer(handler);
+console.error('BOOT: server object ready');
 
 if (SECRET.length < 32) { console.error('CONFIG_SECRET missing or too short (min 32 chars)'); process.exit(1); }
 if (!REAL_IP_HEADER) log('warning: REAL_IP_HEADER is not set. Behind a reverse proxy every user shares one IP and one rate limit.');
@@ -1063,12 +1070,12 @@ setInterval(() => {
   for (const [ip, l] of ipJobs) if (!l.some(t => now - t < 3600000)) ipJobs.delete(ip);
   for (const t of [ipHits, srtHits, upHits]) for (const [ip, l] of t) if (!l.some(x => now - x < 60000)) t.delete(ip);
 }, 600000).unref();
-server.listen(PORT, HOST, () => log(`AI Subtitles on ${PUBLIC_URL}/configure`));
-// BeamUp's Dokku deploy check probes the container on ports we can't predict
-// (5000 default, 7311 EXPOSE, or BeamUp's own 8000+ assignment). Bind a window.
+console.error('BOOT: pre-listen', {PORT, HOST, SECRET: SECRET.length, LANGS: LANG.length});
+server.listen(PORT, HOST, () => { log(`AI Subtitles on ${PUBLIC_URL}/configure`); console.error('BOOT: main listening', HOST, PORT); });
+// BeamUp's Dokku deploy check probes unpredictable container ports (5000 default,
+// 7311 from our old EXPOSE, 80 when Dokku defaults). Bind them; drop setuid after.
 const probePorts = new Set([5000, 7311]);
 if (process.getuid && process.getuid() === 0) probePorts.add(80);
-for (const p of Array.from({ length: 260 }, (_, i) => 7999 + i)) probePorts.add(p);
 for (const p of probePorts) {
 	if (p === PORT) continue;
 	const alt = http.createServer(handler);
@@ -1080,3 +1087,4 @@ for (const p of probePorts) {
 		}
 	});
 }
+// BeamUp's Dokku deploy check probes the container on ports we can't predict

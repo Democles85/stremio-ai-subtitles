@@ -1,6 +1,0 @@
-.git
-.env
-cache/
-beamup.json
-node_modules/
-*.png

@@ -920,22 +920,28 @@ const body = () => JSON.stringify({ p: $('p').value, k: $('k').value, m: $('m').
 const show = (el, ok, text) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = text; };
 async function call(path, btn) {
   const label = btn.textContent; btn.disabled = true; btn.textContent = '…';
-  try { const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body() }); return await r.json(); }
-  catch (e) { return { error: 'Network error. Try again.' }; }
+  let r;
+  try { r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body() }); }
+  catch (e) { return { error: 'The browser could not reach this server at all. Reload the page (or open it with ?v=3) and try again.' }; }
   finally { btn.disabled = false; btn.textContent = label; }
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (j && j.error) return j;
+  if (!r.ok) return { error: 'The server is probably waking up (HTTP ' + r.status + '). Wait ~30 seconds and press again.' };
+  if (j) return j;
+  return { error: 'The server replied ' + r.status + ' without an answer. Wait ~30 seconds and press again.' };
 }
 $('load').onclick = async () => {
-  const r = await call('${esc(PUBLIC_URL)}/api/models', $('load'));
+  const r = await call('/api/models', $('load'));
   if (r.error) return show($('testmsg'), false, r.error);
   $('models').replaceChildren(...r.models.map(m => { const o = document.createElement('option'); o.value = m; return o; }));
   show($('testmsg'), true, r.models.length + ' models found. Tap the model field to pick one.');
 };
 $('test').onclick = async () => {
-  const r = await call('${esc(PUBLIC_URL)}/api/test', $('test'));
+  const r = await call('/api/test', $('test'));
   show($('testmsg'), !r.error, r.error || ('It works: "' + r.sample + '"'));
 };
 $('save').onclick = async () => {
-  const r = await call('${esc(PUBLIC_URL)}/api/config', $('save'));
+  const r = await call('/api/config', $('save'));
   if (r.error) { $('out').classList.remove('on'); return show($('savemsg'), false, r.error); }
   $('savemsg').className = 'msg';
   $('open').href = r.stremio; $('link').textContent = r.manifest; $('out').classList.add('on');

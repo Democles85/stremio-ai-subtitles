@@ -928,10 +928,10 @@ async function call(path, btn) {
     } catch (e) { return { fail: e }; }
   };
   let out = await go();
-  if (out.r && !out.j && out.r.status >= 500) {
-    // sleeping container: proxy answers 5xx HTML while it boots — retry once on its own
-    btn.textContent = 'Waking server…';
-    await new Promise(function (res) { setTimeout(res, 25000); });
+  for (let n = 1; n <= 3 && out.r && !out.j && out.r.status >= 500; n++) {
+    // sleeping container: proxy answers 5xx HTML while it boots — be patient, retry on its own
+    btn.textContent = 'Waking server ' + n + '/3…';
+    await new Promise(function (res) { setTimeout(res, 20000); });
     out = await go();
   }
   btn.disabled = false; btn.textContent = label;

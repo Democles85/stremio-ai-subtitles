@@ -66,6 +66,7 @@ const PROVIDERS = {
   anthropic:  { name: 'Anthropic (Claude)', base: 'https://api.anthropic.com/v1', model: 'claude-haiku-5-5', native: 'anthropic' },
   gemini:     { name: 'Google Gemini', base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.5-flash-lite' },
   groq:       { name: 'Groq', base: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  nvidia:     { name: 'NVIDIA (NIM)', base: 'https://integrate.api.nvidia.com/v1', model: 'meta-llama/llama-3.3-70b-instruct' },
   openrouter: { name: 'OpenRouter', base: 'https://openrouter.ai/api/v1', model: 'google/gemini-3.5-flash-lite' },
   deepseek:   { name: 'DeepSeek', base: 'https://api.deepseek.com', model: 'deepseek-flash' },
   mistral:    { name: 'Mistral', base: 'https://api.mistral.ai/v1', model: 'mistral-small-2603' },
@@ -89,7 +90,7 @@ const manifestBase = {
   id: 'dev.luizsilva.ai-subtitles',
   version: '2.1.1', // x-release-please-version
   name: 'AI Subtitles',
-  description: 'Translates English subtitles into your language with your own AI (OpenAI, Claude, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Grok or any OpenAI-compatible endpoint).',
+  description: 'Translates English subtitles into your language with your own AI (OpenAI, Claude, Gemini, Groq, NVIDIA, OpenRouter, DeepSeek, Mistral, Grok or any OpenAI-compatible endpoint).',
   resources: ['subtitles'],
   types: ['movie', 'series'],
   idPrefixes: ['tt'],

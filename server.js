@@ -510,9 +510,27 @@ function parseSrt(text) {
   return cues;
 }
 
-const buildSrt = cues => cues.map((c, i) => `${i + 1}\n${c.time}\n${c.text}\n`).join('\n');
+const buildSrt = cues => retime(cues).map((c, i) => `${i + 1}\n${c.time}\n${c.text}\n`).join('\n');
 const srtMs = t => { const [h, m, x] = t.split(':'); const [sec, ms] = x.split(','); return ((+h * 60 + +m) * 60 + +sec) * 1000 + +ms; };
 const msSrt = ms => new Date(ms).toISOString().slice(11, 23).replace('.', ',');
+
+// the translated line usually reads slower than the English original, so extend each cue
+// into the silence before the next one (never overlapping it), capped at 8 s.
+const CPS_MS = 65; // ~15 chars/sec
+const MIN_ON = 1200, MAX_ON = 8000, PAD = 100;
+function retime(cues) {
+  if (cues.length < 2) return cues;
+  const starts = cues.map(c => srtMs(c.time.split(' --> ')[0]));
+  const ends = cues.map(c => srtMs(c.time.split(' --> ')[1]));
+  return cues.map((c, i) => {
+    const need = Math.max(MIN_ON, Math.min(MAX_ON, c.text.length * CPS_MS));
+    const limit = i + 1 < cues.length
+      ? Math.min(starts[i] + need, starts[i + 1] - PAD)
+      : ends[i] + 2000;
+    const end = Math.max(ends[i], limit);
+    return end === ends[i] ? c : { ...c, time: `${msSrt(starts[i])} --> ${msSrt(end)}` };
+  });
+}
 
 // ---------- texts shown inside the subtitle ----------
 

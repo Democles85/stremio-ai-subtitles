@@ -920,16 +920,30 @@ const body = () => JSON.stringify({ p: $('p').value, k: $('k').value, m: $('m').
 const show = (el, ok, text) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = text; };
 async function call(path, btn) {
   const label = btn.textContent; btn.disabled = true; btn.textContent = '…';
-  let r;
-  try { r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body() }); }
-  catch (e) { return { error: 'The browser could not reach this server at all. Reload the page (or open it with ?v=3) and try again.' }; }
-  finally { btn.disabled = false; btn.textContent = label; }
-  let j = null; try { j = await r.json(); } catch (e) {}
-  if (j && j.error) return j;
-  if (!r.ok) return { error: 'The server is probably waking up (HTTP ' + r.status + '). Wait ~30 seconds and press again.' };
-  if (j) return j;
-  return { error: 'The server replied ' + r.status + ' without an answer. Wait ~30 seconds and press again.' };
+  const go = async () => {
+    try {
+      const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body() });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      return { r: r, j: j };
+    } catch (e) { return { fail: e }; }
+  };
+  let out = await go();
+  if (out.r && !out.j && out.r.status >= 500) {
+    // sleeping container: proxy answers 5xx HTML while it boots — retry once on its own
+    btn.textContent = 'Waking server…';
+    await new Promise(function (res) { setTimeout(res, 25000); });
+    out = await go();
+  }
+  btn.disabled = false; btn.textContent = label;
+  if (out.fail) return { error: 'The browser could not reach this server at all. Reload the page (or open it with ?v=3) and try again.' };
+  if (out.j && out.j.error) return out.j;
+  if (out.r && !out.r.ok) return { error: 'The server is probably waking up (HTTP ' + out.r.status + '). Wait ~30 seconds and press again.' };
+  if (out.j) return out.j;
+  return { error: 'The server replied ' + (out.r ? out.r.status : '?') + ' without an answer. Wait ~30 seconds and press again.' };
 }
+// the page itself may come from the edge cache, so the container can still be asleep:
+// poke it now, so it's awake by the time the user presses Test
+fetch('/health?warm=' + Date.now()).catch(function () {});
 $('load').onclick = async () => {
   const r = await call('/api/models', $('load'));
   if (r.error) return show($('testmsg'), false, r.error);

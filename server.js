@@ -132,7 +132,7 @@ function fetchText(url, opts = {}, timeoutMs = 30000, guard = false) {
   return new Promise((resolve, reject) => {
     let u;
     try { u = new URL(url); } catch { return reject(userError('invalid address')); }
-    if (u.protocol !== 'https:') return reject(userError('only https:// addresses are allowed'));
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return reject(userError('only http:// or https:// addresses are allowed'));
     const host = u.hostname.replace(/^\[|\]$/g, '');
     if (guard && net.isIP(host) && !publicIp(host)) return reject(privateError());
     if (opts.signal && opts.signal.aborted) return reject(abortedError());
@@ -147,7 +147,8 @@ function fetchText(url, opts = {}, timeoutMs = 30000, guard = false) {
     };
     const headers = { ...(opts.headers || {}) };
     if (opts.body) headers['Content-Length'] = Buffer.byteLength(opts.body);
-    const req = https.request(u, { method: opts.method || 'GET', headers, agent: guard ? guardedAgent : undefined }, res => {
+    const client = u.protocol === 'http:' ? http : https;
+    const req = client.request(u, { method: opts.method || 'GET', headers, agent: guard ? guardedAgent : undefined }, res => {
       const chunks = [];
       let size = 0;
       res.on('data', c => {
@@ -296,7 +297,7 @@ function validConfig(c, strict = false) {
   let u = '';
   if (p === 'custom') {
     u = String(c.u || '').trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
-    if (!/^https:\/\/[^\s/]+(\/\S*)?$/.test(u) || u.length > 300 || ctrl.test(u)) return fail('The custom endpoint must be an https:// URL.');
+    if (!/^(https?:\/\/[^\s/]+(\/\S*)?)/.test(u) || u.length > 300 || ctrl.test(u)) return fail('The custom endpoint must be a http:// or https:// URL.');
   }
   const l = String(c.l || '');
   if (!LANG[l]) return fail('Choose a language.');
@@ -358,7 +359,7 @@ function parseAnswer(raw) {
 // deadline (optional) cuts the request when the whole translation runs out of time
 async function chat(cfg, system, user, timeoutMs = 120000, deadline = Infinity, signal) {
   const base = baseUrl(cfg);
-  const guard = cfg.p === 'custom';
+  const guard = cfg.p === 'custom' && cfg.u.startsWith('https://');
   timeoutMs = Math.min(timeoutMs, guard ? CUSTOM_TIMEOUT : timeoutMs, deadline - Date.now());
   if (PROVIDERS[cfg.p].native === 'anthropic') {
     const raw = await fetchText(`${base}/messages`, {
@@ -389,7 +390,7 @@ async function listModels(cfg, signal) {
   const headers = PROVIDERS[cfg.p].native === 'anthropic'
     ? { 'x-api-key': cfg.k, 'anthropic-version': '2023-06-01' }
     : { 'Authorization': `Bearer ${cfg.k}` };
-  const data = parseAnswer(await fetchText(`${base}/models${cfg.p === 'anthropic' ? '?limit=100' : ''}`, { headers, signal }, 15000, cfg.p === 'custom'));
+  const data = parseAnswer(await fetchText(`${base}/models${cfg.p === 'anthropic' ? '?limit=100' : ''}`, { headers, signal }, 15000, cfg.p === 'custom' && cfg.u.startsWith('https://')));
   const list = Array.isArray(data) ? data : (data && (data.data || data.models)) || [];
   const ids = (Array.isArray(list) ? list : []).map(m => String((m && (m.id || m.name)) || '').replace(/^models\//, ''))
     .filter(id => id && id.length <= 120);

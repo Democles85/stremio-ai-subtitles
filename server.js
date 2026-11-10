@@ -88,7 +88,7 @@ try {
 
 const manifestBase = {
   id: 'dev.luizsilva.ai-subtitles',
-  version: '2.1.1', // x-release-please-version
+  version: '2.1.2', // x-release-please-version
   name: 'AI Subtitles',
   description: 'Translates English subtitles into your language with your own AI (OpenAI, Claude, Gemini, Groq, NVIDIA, OpenRouter, DeepSeek, Mistral, Grok or any OpenAI-compatible endpoint).',
   resources: ['subtitles'],
